@@ -23,22 +23,13 @@ public class FileReaderSpout implements IRichSpout {
 
   private final String filepath;
 
-  private FileReader fileReader;
-  private BufferedReader reader;
   private boolean isCompleted = false;
 
   private SpoutOutputCollector collector;
   private TopologyContext context;
 
-
   public FileReaderSpout(final String filepath) throws FileNotFoundException {
 	this.filepath = filepath;
-	try {
-		this.fileReader = new FileReader(filepath);
-	} catch (FileNotFoundException e) {
-		LOG.error("The file {} doesn't exist", filepath);
-		throw e;
-	}
   }
 
   @Override
@@ -46,7 +37,6 @@ public class FileReaderSpout implements IRichSpout {
 		   TopologyContext context,
                    SpoutOutputCollector collector) {
 
-    this.reader = new BufferedReader(fileReader);
     this.context = context;
     this.collector = collector;
   }
@@ -55,13 +45,17 @@ public class FileReaderSpout implements IRichSpout {
   public void nextTuple() {
     if (!isCompleted) {
 	try {
-		final String line = reader.readLine();
-		if (null != line) {
+		final FileReader fileReader = new FileReader(filepath);
+		final BufferedReader reader = new BufferedReader(fileReader);
+		String line;
+		while ( null != (line = reader.readLine()) ) {
 			collector.emit( new Values(line) );
-		} else {
-			LOG.info("The file {} is finished", filepath);
-			isCompleted = true;
 		}
+		
+		LOG.info("The file {} is finished", filepath);
+		isCompleted = true;
+
+		reader.close();
 	} catch (IOException e) {
 		LOG.error("Generic exception during tuple retrieving: {}", e);
 	} finally {
@@ -81,15 +75,6 @@ public class FileReaderSpout implements IRichSpout {
 
   @Override
   public void close() {
-    try {
-	    if (null != reader) {
-		reader.close();
-	    } else if (null != fileReader) {
-		fileReader.close();
-	    }
-    } catch (IOException e) {
-	LOG.error("Generic exception during spout closing: {}", e);
-    }
   }
 
 
